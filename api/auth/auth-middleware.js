@@ -1,49 +1,79 @@
-/*
-  If the user does not have a session saved in the server
+const users = require('../users/users-model')
 
-  status 401
-  {
-    "message": "You shall not pass!"
-  }
-*/
-function restricted() {
-
+module.exports = {
+  restricted,
+  checkUsernameFree,
+  checkUsernameExists,
+  checkPasswordLength,
+  checkPayload
 }
 
-/*
-  If the username in req.body already exists in the database
-
-  status 422
-  {
-    "message": "Username taken"
+function restricted(req, res, next) {
+  try {
+    if (req.session.user) {
+      next();
+    } else {
+      next({ status: 401, message: 'You shall not pass!' });
+    }
+  } catch (err) {
+    next(err);
   }
-*/
-function checkUsernameFree() {
-
 }
 
-/*
-  If the username in req.body does NOT exist in the database
-
-  status 401
-  {
-    "message": "Invalid credentials"
+async function checkUsernameFree(req, res, next) {
+  try {
+    const { username } = req.body;
+    const result = await users.findBy({ username });
+    if (result.length) {
+      next({ status: 422, message: 'Username taken' });
+    } else {
+      next();
+    }
+  } catch (err) {
+    next(err);
   }
-*/
-function checkUsernameExists() {
-
 }
 
-/*
-  If password is missing from req.body, or if it's 3 chars or shorter
-
-  status 422
-  {
-    "message": "Password must be longer than 3 chars"
+async function checkUsernameExists(req, res, next) {
+  try {
+    const { username } = req.body;
+    const result = await users.findBy({ username });
+    if (!result.length) {
+      next({ status: 401, message: 'Invalid credentials' });
+    } else {
+      req.body.user = result[0];
+      next();
+    }
+  } catch (err) {
+    next(err);
   }
-*/
-function checkPasswordLength() {
-
 }
 
-// Don't forget to add these to the `exports` object so they can be required in other modules
+function checkPasswordLength(req, res, next) {
+  try {
+    const { password } = req.body;
+    if (!password || password.length <= 3) {
+      next({ status: 422, message: 'Password must be longer than 3 chars' });
+    } else {
+      next(); 
+    }
+  } catch (err) {
+    next(err);
+  }
+}
+
+function checkPayload(req, res, next) {
+  try {
+    const { username, password } = req.body;
+    if (!username) {
+      next({ status: 422, message: 'username is required' });
+    } else
+    if (!password) {
+      next({ status: 422, message: 'password is required' });
+    } else {
+      next();
+    }
+  } catch (err) {
+    next(err);
+  }
+}
